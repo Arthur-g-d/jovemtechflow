@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,88 +10,85 @@ import { BookOpen, Calendar, Users, Trophy, Clock, MapPin } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale/pt-BR";
 
+async function fetchDashboardData() {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { user: null, enrolledProjects: [] as any[], upcomingEvents: [] as any[], overallProgress: 0 };
+  }
+
+  let enrolledProjects: any[] = [];
+  let overallProgress = 0;
+
+  const { data: enrollments, error: enrollError } = await supabase
+    .from("project_enrollments")
+    .select(`
+      *,
+      projects:project_id (
+        id,
+        title,
+        description,
+        image_url,
+        tags
+      )
+    `)
+    .eq("user_id", user.id);
+
+  if (!enrollError && enrollments) {
+    const results = await Promise.allSettled(
+      enrollments.map(async (enrollment) => {
+        const { data: contents } = await supabase
+          .from("project_contents")
+          .select("*")
+          .eq("project_id", enrollment.project_id);
+
+        const { data: progressions } = await supabase
+          .from("project_progressions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("project_id", enrollment.project_id);
+
+        const totalContents = contents?.length || 0;
+        const completedContents = progressions?.filter(p => p.progress_num >= 100).length || 0;
+        const progressPercentage = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
+
+        return {
+          ...enrollment,
+          project: enrollment.projects,
+          progress: progressPercentage,
+          completedContents,
+          totalContents
+        };
+      })
+    );
+
+    enrolledProjects = results
+      .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+      .map(r => r.value);
+
+    const totalProgress = enrolledProjects.reduce((sum, project) => sum + project.progress, 0);
+    overallProgress = enrolledProjects.length > 0 ? Math.round(totalProgress / enrolledProjects.length) : 0;
+  }
+
+  const { data: events } = await supabase
+    .from("events")
+    .select("*")
+    .gte("event_date", new Date().toISOString().split('T')[0])
+    .order("event_date", { ascending: true })
+    .limit(3);
+
+  return { user, enrolledProjects, upcomingEvents: events || [], overallProgress };
+}
+
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(null);
-  const [enrolledProjects, setEnrolledProjects] = useState<any[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
-  const [overallProgress, setOverallProgress] = useState(0);
+  const { data, isLoading } = useQuery({
+    queryKey: ["dashboard"],
+    queryFn: fetchDashboardData,
+  });
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) return;
-
-      setUser(user);
-
-      const { data: enrollments, error: enrollError } = await supabase
-        .from("project_enrollments")
-        .select(`
-          *,
-          projects:project_id (
-            id,
-            title,
-            description,
-            image_url,
-            tags
-          )
-        `)
-        .eq("user_id", user.id);
-
-      if (!enrollError && enrollments) {
-        const results = await Promise.allSettled(
-          enrollments.map(async (enrollment) => {
-            const { data: contents } = await supabase
-              .from("project_contents")
-              .select("*")
-              .eq("project_id", enrollment.project_id);
-
-            const { data: progressions } = await supabase
-              .from("project_progressions")
-              .select("*")
-              .eq("user_id", user.id)
-              .eq("project_id", enrollment.project_id);
-
-            const totalContents = contents?.length || 0;
-            const completedContents = progressions?.filter(p => p.progress_num >= 100).length || 0;
-            const progressPercentage = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
-
-            return {
-              ...enrollment,
-              project: enrollment.projects,
-              progress: progressPercentage,
-              completedContents,
-              totalContents
-            };
-          })
-        );
-
-        const projectsWithProgress = results
-          .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
-          .map(r => r.value);
-
-        setEnrolledProjects(projectsWithProgress);
-
-        const totalProgress = projectsWithProgress.reduce((sum, project) => sum + project.progress, 0);
-        const avgProgress = projectsWithProgress.length > 0 ? Math.round(totalProgress / projectsWithProgress.length) : 0;
-        setOverallProgress(avgProgress);
-      }
-
-      const { data: events } = await supabase
-        .from("events")
-        .select("*")
-        .gte("event_date", new Date().toISOString().split('T')[0])
-        .order("event_date", { ascending: true })
-        .limit(3);
-
-      setUpcomingEvents(events || []);
-    } catch {
-      // silently ignore unexpected errors to prevent blank dashboard
-    }
-  };
+  const user = data?.user ?? null;
+  const enrolledProjects = data?.enrolledProjects ?? [];
+  const upcomingEvents = data?.upcomingEvents ?? [];
+  const overallProgress = data?.overallProgress ?? 0;
 
   const formatDateTime = (date: string, time: string) => {
     try {
@@ -102,7 +99,7 @@ export default function Dashboard() {
     }
   };
 
-  if (!user) {
+  if (isLoading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Carregando...</div>

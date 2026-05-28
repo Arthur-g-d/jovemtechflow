@@ -1,6 +1,7 @@
 
 import { useParams, Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import ProjectContentManager from "@/components/ProjectContentManager";
 import ProjectEnrollmentManager from "@/components/ProjectEnrollmentManager";
@@ -13,55 +14,59 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, BookOpen, Users, BarChart3, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+async function fetchProjectAndUserData(id: string) {
+  const { data: projectData, error: projectError } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (projectError || !projectData) {
+    return { project: null, user: null, isAdmin: false, isEnrolled: false };
+  }
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { project: projectData, user: null, isAdmin: false, isEnrolled: false };
+  }
+
+  const { data: roleData } = await supabase
+    .from("user_roles")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("role", "admin")
+    .maybeSingle();
+
+  const { data: enrollmentData } = await supabase
+    .from("project_enrollments")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("project_id", id)
+    .maybeSingle();
+
+  return {
+    project: projectData,
+    user,
+    isAdmin: !!roleData,
+    isEnrolled: !!enrollmentData,
+  };
+}
+
 export default function ProjectDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [project, setProject] = useState<any | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [isEnrolled, setIsEnrolled] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    
-    fetchProjectAndUserData();
-  }, [id]);
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["project-details", id],
+    queryFn: () => fetchProjectAndUserData(id as string),
+    enabled: !!id,
+  });
 
-  const fetchProjectAndUserData = async () => {
-    const { data: projectData, error: projectError } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
-
-    if (projectError || !projectData) return;
-    setProject(projectData);
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError) return;
-    setUser(user);
-
-    if (!user) return;
-
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    setIsAdmin(!!roleData);
-
-    const { data: enrollmentData } = await supabase
-      .from("project_enrollments")
-      .select("*")
-      .eq("user_id", user.id)
-      .eq("project_id", id)
-      .maybeSingle();
-
-    setIsEnrolled(!!enrollmentData);
-  };
+  const project = data?.project ?? null;
+  const user = data?.user ?? null;
+  const isAdmin = data?.isAdmin ?? false;
+  const isEnrolled = data?.isEnrolled ?? false;
 
   const handleDeleteProject = async () => {
     const { error } = await supabase
@@ -74,9 +79,15 @@ export default function ProjectDetailsPage() {
     }
   };
 
-  if (!project) return (
+  if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-lg">Carregando projeto...</div>
+    </div>
+  );
+
+  if (!project) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg">Projeto não encontrado.</div>
     </div>
   );
 
@@ -151,7 +162,7 @@ export default function ProjectDetailsPage() {
                   <div className="flex-1">
                     <ProjectEnrollmentButton 
                       projectId={project.id}
-                      onEnrollmentChange={fetchProjectAndUserData}
+                      onEnrollmentChange={() => refetch()}
                     />
                   </div>
                 )}
@@ -170,9 +181,9 @@ export default function ProjectDetailsPage() {
                 </Button>
               </Link>
             ) : user && !isAdmin ? (
-              <ProjectEnrollmentButton 
+              <ProjectEnrollmentButton
                 projectId={project.id}
-                onEnrollmentChange={fetchProjectAndUserData}
+                onEnrollmentChange={() => refetch()}
               />
             ) : null}
           </div>

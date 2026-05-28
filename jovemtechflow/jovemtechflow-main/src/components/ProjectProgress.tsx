@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -23,78 +23,68 @@ interface Props {
   projectId: string;
 }
 
-const ProjectProgress = ({ projectId }: Props) => {
-  const [contents, setContents] = useState<Content[]>([]);
-  const [progresses, setProgresses] = useState<Progression[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
+async function fetchProgressData(projectId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id ?? null;
 
-  // Obtem usuário
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id ?? null);
-    });
-  }, []);
-
-  // Busca conteúdos e progresso
-  useEffect(() => {
-    if (!projectId) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const results = await Promise.allSettled([
-          supabase
-            .from("project_contents")
-            .select("*")
-            .eq("project_id", projectId)
-            .order("created_at", { ascending: true }),
-          userId
-            ? supabase
-                .from("project_progressions")
-                .select("*")
-                .eq("project_id", projectId)
-                .eq("user_id", userId)
-            : Promise.resolve({ data: [] }),
-        ]);
-        if (cancelled) return;
-        const c = results[0].status === "fulfilled" ? results[0].value.data : [];
-        const p = results[1].status === "fulfilled" ? results[1].value.data : [];
-        setContents((c as Content[]) || []);
-        setProgresses((p as Progression[]) || []);
-      } catch {
-        // ignore
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [projectId, userId]);
-
-  // Marca atividade como concluída
-  const handleComplete = async (contentId: string) => {
-    if (!userId) return;
-    const { error: upsertError } = await supabase
-      .from("project_progressions")
-      .upsert(
-        {
-          project_id: projectId,
-          user_id: userId,
-          content_id: contentId,
-          progress_num: 100,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "project_id,user_id,content_id" }
-      );
-    if (upsertError) {
-      toast.error("Erro ao salvar progresso. Tente novamente.");
-      return;
-    }
-    const { data: p, error: fetchError } = await supabase
-      .from("project_progressions")
+  const results = await Promise.allSettled([
+    supabase
+      .from("project_contents")
       .select("*")
       .eq("project_id", projectId)
-      .eq("user_id", userId);
-    if (!fetchError) {
-      setProgresses((p as Progression[]) || []);
-    }
-  };
+      .order("created_at", { ascending: true }),
+    userId
+      ? supabase
+          .from("project_progressions")
+          .select("*")
+          .eq("project_id", projectId)
+          .eq("user_id", userId)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const contents = results[0].status === "fulfilled" ? (results[0].value.data as Content[]) : [];
+  const progresses = results[1].status === "fulfilled" ? (results[1].value.data as Progression[]) : [];
+
+  return { userId, contents: contents || [], progresses: progresses || [] };
+}
+
+const ProjectProgress = ({ projectId }: Props) => {
+  const queryClient = useQueryClient();
+
+  const { data } = useQuery({
+    queryKey: ["project-progress", projectId],
+    queryFn: () => fetchProgressData(projectId),
+    enabled: !!projectId,
+  });
+
+  const userId = data?.userId ?? null;
+  const contents = data?.contents ?? [];
+  const progresses = data?.progresses ?? [];
+
+  const completeMutation = useMutation({
+    mutationFn: async (contentId: string) => {
+      if (!userId) throw new Error("Usuário não autenticado");
+      const { error } = await supabase
+        .from("project_progressions")
+        .upsert(
+          {
+            project_id: projectId,
+            user_id: userId,
+            content_id: contentId,
+            progress_num: 100,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "project_id,user_id,content_id" }
+        );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["project-progress", projectId] });
+    },
+    onError: () => {
+      toast.error("Erro ao salvar progresso. Tente novamente.");
+    },
+  });
 
   // Calcula porcentagem global
   const percent =
@@ -127,7 +117,11 @@ const ProjectProgress = ({ projectId }: Props) => {
               {prog?.progress_num >= 100 ? (
                 <span className="text-green-700 text-xs font-semibold">Concluído</span>
               ) : (
-                <Button size="sm" onClick={() => handleComplete(c.id)}>
+                <Button
+                  size="sm"
+                  onClick={() => completeMutation.mutate(c.id)}
+                  disabled={completeMutation.isPending}
+                >
                   Marcar como feito
                 </Button>
               )}
