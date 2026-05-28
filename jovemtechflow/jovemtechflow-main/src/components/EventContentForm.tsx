@@ -12,6 +12,7 @@ import ContentRequiredToggle from "./ContentRequiredToggle";
 import FileUploadField from "./FileUploadField";
 import { Plus } from "lucide-react";
 import { EventContentInput } from "@/hooks/useEventActions";
+import { toast } from "sonner";
 
 interface EventContentFormProps {
   onAddContent: (content: EventContentInput) => void;
@@ -30,7 +31,7 @@ export default function EventContentForm({ onAddContent, loading }: EventContent
     e.preventDefault();
     
     if (!title.trim()) {
-      alert("Por favor, insira um título para o conteúdo.");
+      toast.error("Por favor, insira um título para o conteúdo.");
       return;
     }
 
@@ -39,12 +40,12 @@ export default function EventContentForm({ onAddContent, loading }: EventContent
     const needsText = ['article', 'reading'].includes(contentType);
 
     if (needsUrl && !contentUrl.trim()) {
-      alert("Por favor, insira a URL ou faça upload do arquivo.");
+      toast.error("Por favor, insira a URL ou faça upload do arquivo.");
       return;
     }
 
     if (needsText && !contentText.trim()) {
-      alert("Por favor, insira o conteúdo de texto.");
+      toast.error("Por favor, insira o conteúdo de texto.");
       return;
     }
 

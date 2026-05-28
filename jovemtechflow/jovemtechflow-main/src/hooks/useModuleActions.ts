@@ -30,8 +30,6 @@ export function useModuleActions(projectId: string, onDataChange: () => void) {
   };
 
   const deleteModule = async (moduleId: string) => {
-    if (!confirm("Tem certeza que deseja deletar este módulo? Todos os conteúdos serão removidos.")) return;
-
     setLoading(true);
 
     const { error: contentError } = await supabase
@@ -87,8 +85,6 @@ export function useModuleActions(projectId: string, onDataChange: () => void) {
   };
 
   const deleteContent = async (contentId: string) => {
-    if (!confirm("Tem certeza que deseja deletar este conteúdo?")) return;
-
     setLoading(true);
 
     const { error } = await supabase.from("project_contents").delete().eq("id", contentId);

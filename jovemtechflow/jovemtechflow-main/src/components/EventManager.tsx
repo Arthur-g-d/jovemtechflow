@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, Plus, ArrowLeft } from "lucide-react";
 import EventContentForm from "./EventContentForm";
 import EventContentList from "./EventContentList";
+import ConfirmDialog from "./ConfirmDialog";
 import { useEventData } from "@/hooks/useEventData";
 import { useEventActions } from "@/hooks/useEventActions";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,8 @@ interface Props {
 
 export default function EventManager({ eventId, isAdmin = false }: Props) {
   const [showContentForm, setShowContentForm] = useState(false);
+  const [confirmDeleteEvent, setConfirmDeleteEvent] = useState(false);
+  const [pendingDeleteContentId, setPendingDeleteContentId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const { contents, fetchModules } = useEventData(eventId);
@@ -48,7 +51,7 @@ export default function EventManager({ eventId, isAdmin = false }: Props) {
               Gerenciamento do Evento
             </CardTitle>
             <div className="flex gap-2">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => navigate("/events")}
                 className="gap-2"
@@ -58,7 +61,7 @@ export default function EventManager({ eventId, isAdmin = false }: Props) {
               </Button>
               <Button
                 variant="destructive"
-                onClick={handleDeleteEvent}
+                onClick={() => setConfirmDeleteEvent(true)}
                 disabled={loading}
               >
                 Deletar Evento
@@ -69,13 +72,13 @@ export default function EventManager({ eventId, isAdmin = false }: Props) {
         <CardContent>
           <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <p className="text-sm text-blue-700 dark:text-blue-200">
-              Adicione materiais, vídeos, links e outros conteúdos para enriquecer seu evento. 
+              Adicione materiais, vídeos, links e outros conteúdos para enriquecer seu evento.
               Vídeos do YouTube são reproduzidos diretamente na plataforma.
             </p>
           </div>
 
           {!showContentForm ? (
-            <Button 
+            <Button
               onClick={() => setShowContentForm(true)}
               className="gap-2"
             >
@@ -88,8 +91,8 @@ export default function EventManager({ eventId, isAdmin = false }: Props) {
                 loading={loading}
                 onAddContent={handleAddContent}
               />
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowContentForm(false)}
               >
                 Cancelar
@@ -99,10 +102,31 @@ export default function EventManager({ eventId, isAdmin = false }: Props) {
         </CardContent>
       </Card>
 
-      <EventContentList 
+      <EventContentList
         contents={eventContents}
-        onDelete={deleteContent}
+        onDelete={(id) => setPendingDeleteContentId(id)}
         loading={loading}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteEvent}
+        title="Deletar evento"
+        description="Tem certeza que deseja deletar este evento? Todos os conteúdos e inscrições serão removidos permanentemente."
+        confirmLabel="Deletar"
+        onConfirm={() => { setConfirmDeleteEvent(false); handleDeleteEvent(); }}
+        onCancel={() => setConfirmDeleteEvent(false)}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteContentId}
+        title="Deletar conteúdo"
+        description="Tem certeza que deseja deletar este conteúdo? Esta ação não pode ser desfeita."
+        confirmLabel="Deletar"
+        onConfirm={async () => {
+          if (pendingDeleteContentId) await deleteContent(pendingDeleteContentId);
+          setPendingDeleteContentId(null);
+        }}
+        onCancel={() => setPendingDeleteContentId(null)}
       />
     </div>
   );

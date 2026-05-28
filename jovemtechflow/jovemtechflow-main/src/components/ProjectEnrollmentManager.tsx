@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Users, Mail, UserPlus, UserMinus } from "lucide-react";
+import ConfirmDialog from "./ConfirmDialog";
 
 interface ProjectEnrollmentManagerProps {
   projectId: string;
@@ -21,6 +22,7 @@ export default function ProjectEnrollmentManager({ projectId }: ProjectEnrollmen
   const [maxEnrollments, setMaxEnrollments] = useState<number | null>(null);
   const [enrollmentOpen, setEnrollmentOpen] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; username: string } | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -170,8 +172,6 @@ export default function ProjectEnrollmentManager({ projectId }: ProjectEnrollmen
   };
 
   const removeEnrollment = async (enrollmentId: string, username: string) => {
-    if (!confirm(`Tem certeza que deseja remover ${username} do projeto?`)) return;
-
     const { error } = await supabase
       .from("project_enrollments")
       .delete()
@@ -301,7 +301,7 @@ export default function ProjectEnrollmentManager({ projectId }: ProjectEnrollmen
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => removeEnrollment(enrollment.id, enrollment.profiles?.username || "Usuário")}
+                    onClick={() => setPendingRemove({ id: enrollment.id, username: enrollment.profiles?.username || "Usuário" })}
                   >
                     <UserMinus className="h-4 w-4" />
                   </Button>
@@ -311,6 +311,17 @@ export default function ProjectEnrollmentManager({ projectId }: ProjectEnrollmen
           )}
         </CardContent>
       </Card>
+      <ConfirmDialog
+        open={!!pendingRemove}
+        title="Remover usuário"
+        description={`Tem certeza que deseja remover ${pendingRemove?.username} do projeto?`}
+        confirmLabel="Remover"
+        onConfirm={() => {
+          if (pendingRemove) removeEnrollment(pendingRemove.id, pendingRemove.username);
+          setPendingRemove(null);
+        }}
+        onCancel={() => setPendingRemove(null)}
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import ProjectContentManager from "@/components/ProjectContentManager";
 import ProjectEnrollmentManager from "@/components/ProjectEnrollmentManager";
 import ProjectProgress from "@/components/ProjectProgress";
 import ProjectEnrollmentButton from "@/components/ProjectEnrollmentButton";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ export default function ProjectDetailsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -62,13 +64,11 @@ export default function ProjectDetailsPage() {
   };
 
   const handleDeleteProject = async () => {
-    if (!confirm("Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita.")) return;
-    
     const { error } = await supabase
       .from("projects")
       .delete()
       .eq("id", id);
-    
+
     if (!error) {
       navigate("/projects");
     }
@@ -115,7 +115,7 @@ export default function ProjectDetailsPage() {
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={handleDeleteProject}
+                    onClick={() => setConfirmDelete(true)}
                     className="gap-2"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -219,6 +219,15 @@ export default function ProjectDetailsPage() {
           </Card>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Deletar projeto"
+        description="Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita."
+        confirmLabel="Deletar"
+        onConfirm={() => { setConfirmDelete(false); handleDeleteProject(); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }

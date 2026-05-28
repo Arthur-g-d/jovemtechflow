@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BookOpen, Plus } from "lucide-react";
 import ModuleCard from "./ModuleCard";
 import NewModuleForm from "./NewModuleForm";
+import ConfirmDialog from "./ConfirmDialog";
 import { useModuleData } from "@/hooks/useModuleData";
 import { useModuleActions } from "@/hooks/useModuleActions";
 
@@ -16,6 +17,8 @@ interface Props {
 export default function ModuleManager({ projectId, isAdmin = false }: Props) {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const [showNewModuleForm, setShowNewModuleForm] = useState(false);
+  const [pendingDeleteModule, setPendingDeleteModule] = useState<string | null>(null);
+  const [pendingDeleteContent, setPendingDeleteContent] = useState<string | null>(null);
 
   const { modules, contents, fetchModules } = useModuleData(projectId);
   const { loading, addModule, deleteModule, addContentToModule, deleteContent } = useModuleActions(projectId, fetchModules);
@@ -59,7 +62,7 @@ export default function ModuleManager({ projectId, isAdmin = false }: Props) {
           </div>
 
           {!showNewModuleForm ? (
-            <Button 
+            <Button
               onClick={() => setShowNewModuleForm(true)}
               className="gap-2"
             >
@@ -97,13 +100,37 @@ export default function ModuleManager({ projectId, isAdmin = false }: Props) {
               expanded={expandedModules.has(module.id)}
               loading={loading}
               onToggleExpansion={toggleModuleExpansion}
-              onDelete={deleteModule}
+              onDelete={(id) => setPendingDeleteModule(id)}
               onAddContent={handleAddContentToModule}
-              onDeleteContent={deleteContent}
+              onDeleteContent={(id) => setPendingDeleteContent(id)}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteModule}
+        title="Deletar módulo"
+        description="Tem certeza que deseja deletar este módulo? Todos os conteúdos serão removidos permanentemente."
+        confirmLabel="Deletar"
+        onConfirm={async () => {
+          if (pendingDeleteModule) await deleteModule(pendingDeleteModule);
+          setPendingDeleteModule(null);
+        }}
+        onCancel={() => setPendingDeleteModule(null)}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteContent}
+        title="Deletar conteúdo"
+        description="Tem certeza que deseja deletar este conteúdo? Esta ação não pode ser desfeita."
+        confirmLabel="Deletar"
+        onConfirm={async () => {
+          if (pendingDeleteContent) await deleteContent(pendingDeleteContent);
+          setPendingDeleteContent(null);
+        }}
+        onCancel={() => setPendingDeleteContent(null)}
+      />
     </div>
   );
 }

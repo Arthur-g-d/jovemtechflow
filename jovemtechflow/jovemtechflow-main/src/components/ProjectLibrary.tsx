@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Plus, Settings, Eye, Trash2 } from "lucide-react";
 import CreateProjectDialog from "./CreateProjectDialog";
 import ProjectEnrollmentButton from "./ProjectEnrollmentButton";
+import ConfirmDialog from "./ConfirmDialog";
 
 export default function ProjectLibrary() {
   const [projects, setProjects] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -45,13 +47,11 @@ export default function ProjectLibrary() {
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    if (!confirm("Tem certeza que deseja deletar este projeto?")) return;
-    
     const { error } = await supabase
       .from("projects")
       .delete()
       .eq("id", projectId);
-    
+
     if (!error) {
       fetchProjects();
     }
@@ -160,10 +160,10 @@ export default function ProjectLibrary() {
                         Gerenciar
                       </Button>
                     </Link>
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteProject(project.id)}
+                      onClick={() => setPendingDeleteId(project.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -174,10 +174,22 @@ export default function ProjectLibrary() {
           ))}
         </div>
 
-        <CreateProjectDialog 
+        <CreateProjectDialog
           open={showCreateDialog}
           onOpenChange={setShowCreateDialog}
           onProjectCreated={fetchProjects}
+        />
+
+        <ConfirmDialog
+          open={!!pendingDeleteId}
+          title="Deletar projeto"
+          description="Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita."
+          confirmLabel="Deletar"
+          onConfirm={() => {
+            if (pendingDeleteId) handleDeleteProject(pendingDeleteId);
+            setPendingDeleteId(null);
+          }}
+          onCancel={() => setPendingDeleteId(null)}
         />
       </div>
     </div>
