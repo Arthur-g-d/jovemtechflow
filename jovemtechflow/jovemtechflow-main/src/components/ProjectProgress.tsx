@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 
 interface Content {
   id: string;
@@ -37,31 +38,39 @@ const ProjectProgress = ({ projectId }: Props) => {
   // Busca conteúdos e progresso
   useEffect(() => {
     if (!projectId) return;
+    let cancelled = false;
     (async () => {
-      // Use supabase as any to avoid type errors due to missing types for project_contents and project_progressions
-      const [{ data: c }, { data: p }] = await Promise.all([
-        (supabase as any)
-          .from("project_contents")
-          .select("*")
-          .eq("project_id", projectId)
-          .order("created_at", { ascending: true }),
-        userId
-          ? (supabase as any)
-              .from("project_progressions")
-              .select("*")
-              .eq("project_id", projectId)
-              .eq("user_id", userId)
-          : Promise.resolve({ data: [] }),
-      ]);
-      setContents((c as Content[]) || []);
-      setProgresses((p as Progression[]) || []);
+      try {
+        const results = await Promise.allSettled([
+          (supabase as any)
+            .from("project_contents")
+            .select("*")
+            .eq("project_id", projectId)
+            .order("created_at", { ascending: true }),
+          userId
+            ? (supabase as any)
+                .from("project_progressions")
+                .select("*")
+                .eq("project_id", projectId)
+                .eq("user_id", userId)
+            : Promise.resolve({ data: [] }),
+        ]);
+        if (cancelled) return;
+        const c = results[0].status === "fulfilled" ? results[0].value.data : [];
+        const p = results[1].status === "fulfilled" ? results[1].value.data : [];
+        setContents((c as Content[]) || []);
+        setProgresses((p as Progression[]) || []);
+      } catch {
+        // ignore
+      }
     })();
+    return () => { cancelled = true; };
   }, [projectId, userId]);
 
   // Marca atividade como concluída
   const handleComplete = async (contentId: string) => {
     if (!userId) return;
-    await (supabase as any)
+    const { error: upsertError } = await (supabase as any)
       .from("project_progressions")
       .upsert(
         {
@@ -73,13 +82,18 @@ const ProjectProgress = ({ projectId }: Props) => {
         },
         { onConflict: ["project_id", "user_id", "content_id"] }
       );
-    // Recarrega dados
-    const { data: p } = await (supabase as any)
+    if (upsertError) {
+      toast.error("Erro ao salvar progresso. Tente novamente.");
+      return;
+    }
+    const { data: p, error: fetchError } = await (supabase as any)
       .from("project_progressions")
       .select("*")
       .eq("project_id", projectId)
       .eq("user_id", userId);
-    setProgresses((p as Progression[]) || []);
+    if (!fetchError) {
+      setProgresses((p as Progression[]) || []);
+    }
   };
 
   // Calcula porcentagem global

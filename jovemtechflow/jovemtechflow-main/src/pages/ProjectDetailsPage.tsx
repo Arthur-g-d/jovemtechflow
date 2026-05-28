@@ -27,39 +27,37 @@ export default function ProjectDetailsPage() {
   }, [id]);
 
   const fetchProjectAndUserData = async () => {
-    // Fetch project
-    const { data: projectData } = await supabase
+    const { data: projectData, error: projectError } = await supabase
       .from("projects")
       .select("*")
       .eq("id", id)
-      .single();
-    
+      .maybeSingle();
+
+    if (projectError || !projectData) return;
     setProject(projectData);
 
-    // Check user authentication and role
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError) return;
     setUser(user);
-    
+
     if (!user) return;
 
-    // Check admin status
     const { data: roleData } = await supabase
       .from("user_roles")
       .select("*")
       .eq("user_id", user.id)
       .eq("role", "admin")
-      .single();
-    
+      .maybeSingle();
+
     setIsAdmin(!!roleData);
 
-    // Check enrollment status
     const { data: enrollmentData } = await supabase
       .from("project_enrollments")
       .select("*")
       .eq("user_id", user.id)
       .eq("project_id", id)
-      .single();
-    
+      .maybeSingle();
+
     setIsEnrolled(!!enrollmentData);
   };
 

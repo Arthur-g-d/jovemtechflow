@@ -47,15 +47,6 @@ export default function ModuleContentForm({ onAddContent, loading }: ModuleConte
       return;
     }
 
-    console.log("Submitting module content:", {
-      title,
-      description,
-      content_type: contentType,
-      content_url: contentUrl || undefined,
-      content_text: contentText || undefined,
-      is_required: isRequired,
-    });
-
     const content = {
       title: title.trim(),
       description: description.trim() || undefined,

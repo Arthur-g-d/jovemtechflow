@@ -48,15 +48,6 @@ export default function EventContentForm({ onAddContent, loading }: EventContent
       return;
     }
 
-    console.log("Submitting event content:", {
-      title,
-      description,
-      content_type: contentType,
-      content_url: contentUrl || undefined,
-      content_text: contentText || undefined,
-      is_required: isRequired,
-    });
-
     const content: EventContentInput = {
       title: title.trim(),
       description: description.trim() || undefined,

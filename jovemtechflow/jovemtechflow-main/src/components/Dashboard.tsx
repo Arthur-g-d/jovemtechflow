@@ -21,72 +21,76 @@ export default function Dashboard() {
   }, []);
 
   const fetchUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) return;
 
-    setUser(user);
+      setUser(user);
 
-    // Buscar projetos matriculados
-    const { data: enrollments } = await supabase
-      .from("project_enrollments")
-      .select(`
-        *,
-        projects:project_id (
-          id,
-          title,
-          description,
-          image_url,
-          tags
-        )
-      `)
-      .eq("user_id", user.id);
+      const { data: enrollments, error: enrollError } = await supabase
+        .from("project_enrollments")
+        .select(`
+          *,
+          projects:project_id (
+            id,
+            title,
+            description,
+            image_url,
+            tags
+          )
+        `)
+        .eq("user_id", user.id);
 
-    if (enrollments) {
-      const projectsWithProgress = await Promise.all(
-        enrollments.map(async (enrollment) => {
-          // Calcular progresso do projeto
-          const { data: contents } = await supabase
-            .from("project_contents")
-            .select("*")
-            .eq("project_id", enrollment.project_id);
+      if (!enrollError && enrollments) {
+        const results = await Promise.allSettled(
+          enrollments.map(async (enrollment) => {
+            const { data: contents } = await supabase
+              .from("project_contents")
+              .select("*")
+              .eq("project_id", enrollment.project_id);
 
-          const { data: progressions } = await supabase
-            .from("project_progressions")
-            .select("*")
-            .eq("user_id", user.id)
-            .eq("project_id", enrollment.project_id);
+            const { data: progressions } = await supabase
+              .from("project_progressions")
+              .select("*")
+              .eq("user_id", user.id)
+              .eq("project_id", enrollment.project_id);
 
-          const totalContents = contents?.length || 0;
-          const completedContents = progressions?.filter(p => p.progress_num >= 100).length || 0;
-          const progressPercentage = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
+            const totalContents = contents?.length || 0;
+            const completedContents = progressions?.filter(p => p.progress_num >= 100).length || 0;
+            const progressPercentage = totalContents > 0 ? Math.round((completedContents / totalContents) * 100) : 0;
 
-          return {
-            ...enrollment,
-            project: enrollment.projects,
-            progress: progressPercentage,
-            completedContents,
-            totalContents
-          };
-        })
-      );
+            return {
+              ...enrollment,
+              project: enrollment.projects,
+              progress: progressPercentage,
+              completedContents,
+              totalContents
+            };
+          })
+        );
 
-      setEnrolledProjects(projectsWithProgress);
+        const projectsWithProgress = results
+          .filter((r): r is PromiseFulfilledResult<any> => r.status === "fulfilled")
+          .map(r => r.value);
 
-      // Calcular progresso geral
-      const totalProgress = projectsWithProgress.reduce((sum, project) => sum + project.progress, 0);
-      const avgProgress = projectsWithProgress.length > 0 ? Math.round(totalProgress / projectsWithProgress.length) : 0;
-      setOverallProgress(avgProgress);
+        setEnrolledProjects(projectsWithProgress);
+
+        const totalProgress = projectsWithProgress.reduce((sum, project) => sum + project.progress, 0);
+        const avgProgress = projectsWithProgress.length > 0 ? Math.round(totalProgress / projectsWithProgress.length) : 0;
+        setOverallProgress(avgProgress);
+      }
+
+      const { data: events } = await supabase
+        .from("events")
+        .select("*")
+        .gte("event_date", new Date().toISOString().split('T')[0])
+        .order("event_date", { ascending: true })
+        .limit(3);
+
+      setUpcomingEvents(events || []);
+    } catch {
+      // silently ignore unexpected errors to prevent blank dashboard
     }
-
-    // Buscar próximos eventos
-    const { data: events } = await supabase
-      .from("events")
-      .select("*")
-      .gte("event_date", new Date().toISOString().split('T')[0])
-      .order("event_date", { ascending: true })
-      .limit(3);
-
-    setUpcomingEvents(events || []);
   };
 
   const formatDateTime = (date: string, time: string) => {

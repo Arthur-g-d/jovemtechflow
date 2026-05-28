@@ -72,9 +72,9 @@ export default function AuthPage() {
         return;
       }
 
-      // Validação username simples (alfanumérico e underline, mínimo 3 caracteres)
-      if (!/^[\w]{3,}$/.test(username)) {
-        toast.error("Nome de usuário inválido, use apenas letras, números e _ (mínimo 3 caracteres)");
+      // Validação username (alfanumérico e underline, entre 3 e 30 caracteres)
+      if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
+        toast.error("Nome de usuário inválido, use apenas letras, números e _ (3 a 30 caracteres)");
         setLoading(false);
         return;
       }

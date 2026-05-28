@@ -53,9 +53,7 @@ export default function FileUploadField({
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
-      console.log("Uploading file:", filePath);
-
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('content-files')
         .upload(filePath, selectedFile, {
           cacheControl: '3600',
@@ -63,19 +61,18 @@ export default function FileUploadField({
         });
 
       if (error) {
-        console.error("Upload error:", error);
         alert("Erro ao fazer upload do arquivo: " + error.message);
         return;
       }
 
-      console.log("Upload successful:", data);
-
-      // Obter URL pública do arquivo
       const { data: urlData } = supabase.storage
         .from('content-files')
         .getPublicUrl(filePath);
 
-      console.log("Public URL:", urlData.publicUrl);
+      if (!urlData?.publicUrl) {
+        alert("Erro ao obter URL do arquivo enviado.");
+        return;
+      }
 
       setUploadProgress(100);
       onFileUploaded(urlData.publicUrl, selectedFile.name);
@@ -84,8 +81,7 @@ export default function FileUploadField({
       setSelectedFile(null);
       setUploadProgress(0);
       
-    } catch (error) {
-      console.error("Upload error:", error);
+    } catch {
       alert("Erro ao fazer upload do arquivo");
     } finally {
       setUploading(false);
