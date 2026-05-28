@@ -42,13 +42,13 @@ const ProjectProgress = ({ projectId }: Props) => {
     (async () => {
       try {
         const results = await Promise.allSettled([
-          (supabase as any)
+          supabase
             .from("project_contents")
             .select("*")
             .eq("project_id", projectId)
             .order("created_at", { ascending: true }),
           userId
-            ? (supabase as any)
+            ? supabase
                 .from("project_progressions")
                 .select("*")
                 .eq("project_id", projectId)
@@ -70,7 +70,7 @@ const ProjectProgress = ({ projectId }: Props) => {
   // Marca atividade como concluída
   const handleComplete = async (contentId: string) => {
     if (!userId) return;
-    const { error: upsertError } = await (supabase as any)
+    const { error: upsertError } = await supabase
       .from("project_progressions")
       .upsert(
         {
@@ -80,13 +80,13 @@ const ProjectProgress = ({ projectId }: Props) => {
           progress_num: 100,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: ["project_id", "user_id", "content_id"] }
+        { onConflict: "project_id,user_id,content_id" }
       );
     if (upsertError) {
       toast.error("Erro ao salvar progresso. Tente novamente.");
       return;
     }
-    const { data: p, error: fetchError } = await (supabase as any)
+    const { data: p, error: fetchError } = await supabase
       .from("project_progressions")
       .select("*")
       .eq("project_id", projectId)

@@ -46,12 +46,12 @@ const EventContentManager = ({ eventId, isAdmin = false }: Props) => {
 
   useEffect(() => {
     if (!eventId) return;
-    (supabase as any)
+    supabase
       .from("event_contents")
       .select("*")
       .eq("event_id", eventId)
       .order("created_at", { ascending: true })
-      .then(({ data }: { data: any[] }) => setContents(data ?? []));
+      .then(({ data }) => setContents(data ?? []));
   }, [eventId]);
 
   // Adiciona conteúdo
@@ -59,7 +59,7 @@ const EventContentManager = ({ eventId, isAdmin = false }: Props) => {
     e.preventDefault();
     setLoading(true);
     const user = (await supabase.auth.getUser()).data.user;
-    await (supabase as any)
+    await supabase
       .from("event_contents")
       .insert({
         event_id: eventId,
@@ -70,25 +70,25 @@ const EventContentManager = ({ eventId, isAdmin = false }: Props) => {
         author_id: user?.id,
       });
     setTitle(""); setDescription(""); setType("text"); setUrl("");
-    (supabase as any)
+    supabase
       .from("event_contents")
       .select("*")
       .eq("event_id", eventId)
       .order("created_at", { ascending: true })
-      .then(({ data }: { data: any[] }) => setContents(data ?? []));
+      .then(({ data }) => setContents(data ?? []));
     setLoading(false);
   };
 
   // Excluir conteúdo
   const handleDelete = async (contentId: string) => {
     setLoading(true);
-    await (supabase as any).from("event_contents").delete().eq("id", contentId);
-    (supabase as any)
+    await supabase.from("event_contents").delete().eq("id", contentId);
+    supabase
       .from("event_contents")
       .select("*")
       .eq("event_id", eventId)
       .order("created_at", { ascending: true })
-      .then(({ data }: { data: any[] }) => setContents(data ?? []));
+      .then(({ data }) => setContents(data ?? []));
     setLoading(false);
   };
 
