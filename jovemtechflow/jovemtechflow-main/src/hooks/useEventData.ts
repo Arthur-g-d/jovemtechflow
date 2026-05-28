@@ -35,22 +35,15 @@ export function useEventData(eventId: string) {
   const fetchModules = async () => {
     if (!eventId) return;
     
-    console.log("Fetching modules for event:", eventId);
-    
     const { data: contentData, error: contentError } = await supabase
       .from("event_contents")
       .select("*")
       .eq("event_id", eventId)
       .order("order_index", { ascending: true });
 
-    if (contentError) {
-      console.error("Error fetching event contents:", contentError);
-      return;
-    }
+    if (contentError) return;
 
     if (contentData) {
-      console.log("Found event contents:", contentData);
-      
       const contentsMap: { [moduleId: string]: EventContent[] } = {
         [eventId]: contentData.map(item => ({
           id: item.id,
@@ -66,8 +59,6 @@ export function useEventData(eventId: string) {
           created_at: item.created_at || new Date().toISOString()
         }))
       };
-      
-      console.log("Final contents map:", contentsMap);
       setContents(contentsMap);
     }
   };
