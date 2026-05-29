@@ -21,7 +21,7 @@ export function useModuleActions(projectId: string, onDataChange: () => void) {
         is_required: true
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (!error) {
       await onDataChange();
@@ -76,7 +76,7 @@ export function useModuleActions(projectId: string, onDataChange: () => void) {
       .from("project_contents")
       .insert(insertData)
       .select()
-      .single();
+      .maybeSingle();
 
     if (!error) {
       await onDataChange();

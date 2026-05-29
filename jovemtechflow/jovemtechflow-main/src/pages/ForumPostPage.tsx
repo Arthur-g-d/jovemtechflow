@@ -126,8 +126,8 @@ export default function ForumPostPage() {
             username
           )
         `)
-        .single();
-        
+        .maybeSingle();
+
       if (error) {
         console.error("Error creating comment:", error);
         toast({

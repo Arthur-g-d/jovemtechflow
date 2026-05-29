@@ -123,7 +123,7 @@ export default function Forum() {
           author_id: user.id
         })
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error creating post:", error);
