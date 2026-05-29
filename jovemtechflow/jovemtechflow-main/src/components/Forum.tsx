@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MessageSquare, Plus, User, Calendar, CheckCircle, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import ConfirmDialog from "./ConfirmDialog";
+import ErrorState from "./ErrorState";
 
 export default function Forum() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -22,7 +24,10 @@ export default function Forum() {
   const [user, setUser] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [postsError, setPostsError] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const categories = [
@@ -69,10 +74,13 @@ export default function Forum() {
       query = query.eq("category", selectedCategory);
     }
 
+    setLoadingPosts(true);
+    setPostsError(false);
+
     const { data, error } = await query;
-    
+
     if (error) {
-      console.error("Error fetching posts:", error);
+      setPostsError(true);
       toast({
         title: "Erro",
         description: "Erro ao carregar posts do fórum",
@@ -81,6 +89,7 @@ export default function Forum() {
     } else {
       setPosts(data || []);
     }
+    setLoadingPosts(false);
   };
 
   const handleCreatePost = async () => {
@@ -153,53 +162,38 @@ export default function Forum() {
       });
       return;
     }
-    
-    if (confirm("Tem certeza que deseja excluir este post? Esta ação não pode ser desfeita.")) {
-      try {
-        // First delete all comments associated with the post
-        const { error: commentsError } = await supabase
-          .from("forum_comments")
-          .delete()
-          .eq("post_id", postId);
-          
-        if (commentsError) {
-          console.error("Error deleting comments:", commentsError);
-          toast({
-            title: "Erro",
-            description: "Erro ao excluir comentários do post",
-            variant: "destructive"
-          });
-          return;
-        }
+    setPendingDeletePostId(postId);
+  };
 
-        // Then delete the post
-        const { error: postError } = await supabase
-          .from("forum_posts")
-          .delete()
-          .eq("id", postId);
-          
-        if (postError) {
-          console.error("Error deleting post:", postError);
-          toast({
-            title: "Erro",
-            description: "Erro ao excluir post",
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Sucesso", 
-            description: "Post excluído com sucesso"
-          });
-          fetchPosts();
-        }
-      } catch (error) {
-        console.error("Unexpected error deleting post:", error);
-        toast({
-          title: "Erro",
-          description: "Erro inesperado ao excluir post",
-          variant: "destructive"
-        });
+  const confirmDeletePost = async () => {
+    const postId = pendingDeletePostId;
+    setPendingDeletePostId(null);
+    if (!postId) return;
+
+    try {
+      const { error: commentsError } = await supabase
+        .from("forum_comments")
+        .delete()
+        .eq("post_id", postId);
+
+      if (commentsError) {
+        toast({ title: "Erro", description: "Erro ao excluir comentários do post", variant: "destructive" });
+        return;
       }
+
+      const { error: postError } = await supabase
+        .from("forum_posts")
+        .delete()
+        .eq("id", postId);
+
+      if (postError) {
+        toast({ title: "Erro", description: "Erro ao excluir post", variant: "destructive" });
+      } else {
+        toast({ title: "Sucesso", description: "Post excluído com sucesso" });
+        fetchPosts();
+      }
+    } catch {
+      toast({ title: "Erro", description: "Erro inesperado ao excluir post", variant: "destructive" });
     }
   };
 
@@ -379,6 +373,15 @@ export default function Forum() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDeletePostId}
+        title="Excluir post"
+        description="Tem certeza que deseja excluir este post? Todos os comentários também serão removidos. Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmDeletePost}
+        onCancel={() => setPendingDeletePostId(null)}
+      />
     </div>
   );
 }

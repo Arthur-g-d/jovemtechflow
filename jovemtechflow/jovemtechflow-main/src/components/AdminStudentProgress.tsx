@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, BookOpen, TrendingUp, Award } from "lucide-react";
+import { toast } from "sonner";
 
 interface Student {
   user_id: string;
@@ -130,11 +131,11 @@ export default function AdminStudentProgress() {
     const project = student?.projects.find(p => p.project_id === projectId);
     
     if (!student || !project || project.progress_percentage < 100) {
-      alert("Certificado só pode ser gerado para projetos 100% concluídos");
+      toast.error("Certificado só pode ser gerado para projetos 100% concluídos");
       return;
     }
 
-    alert(`Certificado gerado para ${student.username} - Projeto: ${project.project_title}`);
+    toast.success(`Certificado gerado para ${student.username} - Projeto: ${project.project_title}`);
   };
 
   const filteredStudents = students.filter(student => {

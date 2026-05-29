@@ -8,12 +8,17 @@ import { Button } from "@/components/ui/button";
 import { Plus, Settings, Eye, Trash2 } from "lucide-react";
 import CreateProjectDialog from "./CreateProjectDialog";
 import ProjectEnrollmentButton from "./ProjectEnrollmentButton";
+import ConfirmDialog from "./ConfirmDialog";
+import ErrorState from "./ErrorState";
 
 export default function ProjectLibrary() {
   const [projects, setProjects] = useState<any[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -35,27 +40,55 @@ export default function ProjectLibrary() {
   }, []);
 
   const fetchProjects = () => {
+    setLoadingProjects(true);
+    setProjectsError(false);
     supabase
       .from("projects")
       .select("*")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setProjects(data ?? []);
+      .then(({ data, error }) => {
+        if (error) {
+          setProjectsError(true);
+        } else {
+          setProjects(data ?? []);
+        }
+        setLoadingProjects(false);
       });
   };
 
   const handleDeleteProject = async (projectId: string) => {
-    if (!confirm("Tem certeza que deseja deletar este projeto?")) return;
-    
     const { error } = await supabase
       .from("projects")
       .delete()
       .eq("id", projectId);
-    
+
     if (!error) {
       fetchProjects();
     }
   };
+
+  if (projectsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-20 px-4">
+        <div className="max-w-7xl mx-auto">
+          <ErrorState
+            message="Não foi possível carregar os projetos. Tente novamente."
+            onRetry={fetchProjects}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingProjects) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-20 px-4">
+        <div className="max-w-7xl mx-auto text-center text-lg text-muted-foreground">
+          Carregando projetos...
+        </div>
+      </div>
+    );
+  }
 
   if (projects.length === 0 && !isAdmin) {
     return (
@@ -160,10 +193,10 @@ export default function ProjectLibrary() {
                         Gerenciar
                       </Button>
                     </Link>
-                    <Button 
-                      variant="destructive" 
+                    <Button
+                      variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteProject(project.id)}
+                      onClick={() => setPendingDeleteId(project.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -174,10 +207,22 @@ export default function ProjectLibrary() {
           ))}
         </div>
 
-        <CreateProjectDialog 
+        <CreateProjectDialog
           open={showCreateDialog}
           onOpenChange={setShowCreateDialog}
           onProjectCreated={fetchProjects}
+        />
+
+        <ConfirmDialog
+          open={!!pendingDeleteId}
+          title="Deletar projeto"
+          description="Tem certeza que deseja deletar este projeto? Esta ação não pode ser desfeita."
+          confirmLabel="Deletar"
+          onConfirm={() => {
+            if (pendingDeleteId) handleDeleteProject(pendingDeleteId);
+            setPendingDeleteId(null);
+          }}
+          onCancel={() => setPendingDeleteId(null)}
         />
       </div>
     </div>

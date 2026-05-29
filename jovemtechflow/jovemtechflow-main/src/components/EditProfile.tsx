@@ -54,7 +54,7 @@ const EditProfile = () => {
           .eq("id", user.id)
           .maybeSingle();
         if (error) return;
-        if (data) setUsername((data as any).username ?? "");
+        if (data) setUsername(data.username ?? "");
       }
     };
     fetchProfile();

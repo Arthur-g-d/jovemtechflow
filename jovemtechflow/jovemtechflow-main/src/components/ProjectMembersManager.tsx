@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 interface Member {
   id: string;
   user_id: string;
-  role: string;
+  project_id: string;
+  joined_at: string;
 }
 interface Props {
   projectId: string;
@@ -37,11 +38,11 @@ const ProjectMembersManager = ({ projectId }: Props) => {
   // Busca os membros do projeto
   const fetchMembers = () => {
     if (!projectId) return;
-    (supabase as any)
+    supabase
       .from("project_members")
       .select("*")
       .eq("project_id", projectId)
-      .then(({ data }: { data: any[] }) => setMembers(data ?? []));
+      .then(({ data }) => setMembers(data ?? []));
   };
 
   useEffect(() => {
@@ -62,7 +63,7 @@ const ProjectMembersManager = ({ projectId }: Props) => {
       return;
     }
 
-    const { error } = await (supabase as any).from("project_members").insert({
+    await supabase.from("project_members").insert({
       project_id: projectId,
       user_id: newUserId,
     });
@@ -77,7 +78,7 @@ const ProjectMembersManager = ({ projectId }: Props) => {
   // Remove membro
   const handleRemove = async (member: Member) => {
     setLoading(true);
-    await (supabase as any)
+    await supabase
       .from("project_members")
       .delete()
       .eq("id", member.id);
@@ -112,7 +113,6 @@ const ProjectMembersManager = ({ projectId }: Props) => {
         {members.map((m) => (
           <Badge key={m.id} className="flex items-center gap-2">
             <span className="truncate max-w-[120px]" title={m.user_id}>{m.user_id}</span>
-            <span className="text-xs italic">({m.role})</span>
             <Button
               size="icon"
               variant="outline"

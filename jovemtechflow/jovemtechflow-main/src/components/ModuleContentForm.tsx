@@ -11,6 +11,7 @@ import ContentTextField from "./ContentTextField";
 import ContentRequiredToggle from "./ContentRequiredToggle";
 import FileUploadField from "./FileUploadField";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 
 interface ModuleContentFormProps {
   onAddContent: (content: any) => void;
@@ -29,7 +30,7 @@ export default function ModuleContentForm({ onAddContent, loading }: ModuleConte
     e.preventDefault();
     
     if (!title.trim()) {
-      alert("Por favor, insira um título para o conteúdo.");
+      toast.error("Por favor, insira um título para o conteúdo.");
       return;
     }
 
@@ -38,12 +39,12 @@ export default function ModuleContentForm({ onAddContent, loading }: ModuleConte
     const needsText = ['article', 'reading'].includes(contentType);
 
     if (needsUrl && !contentUrl.trim()) {
-      alert("Por favor, insira a URL ou faça upload do arquivo.");
+      toast.error("Por favor, insira a URL ou faça upload do arquivo.");
       return;
     }
 
     if (needsText && !contentText.trim()) {
-      alert("Por favor, insira o conteúdo de texto.");
+      toast.error("Por favor, insira o conteúdo de texto.");
       return;
     }
 

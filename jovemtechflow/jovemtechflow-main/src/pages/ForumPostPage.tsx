@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, MessageSquare, User, Clock, Trash2 } from "lucide-react";
 import Navigation from "@/components/Navigation";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface Comment {
@@ -40,6 +41,8 @@ export default function ForumPostPage() {
   const [adding, setAdding] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [confirmDeletePost, setConfirmDeletePost] = useState(false);
+  const [pendingDeleteCommentId, setPendingDeleteCommentId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -154,80 +157,46 @@ export default function ForumPostPage() {
 
   const handleDeletePost = async () => {
     if (!isAdmin || !id) return;
-    if (confirm("Tem certeza que deseja excluir este post?")) {
-      try {
-        // First delete all comments for this post
-        const { error: commentsError } = await supabase
-          .from("forum_comments")
-          .delete()
-          .eq("post_id", id);
-          
-        if (commentsError) {
-          console.error("Error deleting comments:", commentsError);
-        }
-        
-        // Then delete the post
-        const { error: postError } = await supabase
-          .from("forum_posts")
-          .delete()
-          .eq("id", id);
-          
-        if (postError) {
-          console.error("Error deleting post:", postError);
-          toast({
-            title: "Erro",
-            description: `Erro ao excluir post: ${postError.message}`,
-            variant: "destructive"
-          });
-        } else {
-          toast({
-            title: "Sucesso",
-            description: "Post excluído com sucesso"
-          });
-          window.location.href = "/forum";
-        }
-      } catch (error) {
-        console.error("Unexpected error deleting post:", error);
-        toast({
-          title: "Erro",
-          description: "Erro inesperado ao excluir post",
-          variant: "destructive"
-        });
+    setConfirmDeletePost(true);
+  };
+
+  const confirmPostDelete = async () => {
+    setConfirmDeletePost(false);
+    if (!id) return;
+    try {
+      await supabase.from("forum_comments").delete().eq("post_id", id);
+      const { error: postError } = await supabase.from("forum_posts").delete().eq("id", id);
+      if (postError) {
+        toast({ title: "Erro", description: `Erro ao excluir post: ${postError.message}`, variant: "destructive" });
+      } else {
+        toast({ title: "Sucesso", description: "Post excluído com sucesso" });
+        window.location.href = "/forum";
       }
+    } catch {
+      toast({ title: "Erro", description: "Erro inesperado ao excluir post", variant: "destructive" });
     }
   };
 
   const handleDeleteComment = async (commentId: string) => {
     if (!isAdmin) return;
-    if (confirm("Tem certeza que deseja excluir este comentário?")) {
-      try {
-        const { error } = await supabase
-          .from("forum_comments")
-          .delete()
-          .eq("id", commentId);
-          
-        if (error) {
-          console.error("Error deleting comment:", error);
-          toast({
-            title: "Erro",
-            description: `Erro ao excluir comentário: ${error.message}`,
-            variant: "destructive"
-          });
-        } else {
-          setComments(prev => prev.filter(c => c.id !== commentId));
-          toast({
-            title: "Sucesso",
-            description: "Comentário excluído com sucesso"
-          });
-        }
-      } catch (error) {
-        console.error("Unexpected error deleting comment:", error);
-        toast({
-          title: "Erro",
-          description: "Erro inesperado ao excluir comentário",
-          variant: "destructive"
-        });
+    setPendingDeleteCommentId(commentId);
+  };
+
+  const confirmCommentDelete = async () => {
+    const commentId = pendingDeleteCommentId;
+    setPendingDeleteCommentId(null);
+    if (!commentId) return;
+    try {
+      const { error } = await supabase.from("forum_comments").delete().eq("id", commentId);
+      if (error) {
+        toast({ title: "Erro", description: `Erro ao excluir comentário: ${error.message}`, variant: "destructive" });
+      } else {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        toast({ title: "Sucesso", description: "Comentário excluído com sucesso" });
       }
+    } catch {
+      toast({ title: "Erro", description: "Erro inesperado ao excluir comentário", variant: "destructive" });
+
     }
   };
 
@@ -375,7 +344,7 @@ export default function ForumPostPage() {
                         <Button
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleDeleteComment(comment.id)}
+                          onClick={() => setPendingDeleteCommentId(comment.id)}
                           className="gap-1 h-6 px-2 text-xs"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -424,6 +393,24 @@ export default function ForumPostPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={confirmDeletePost}
+        title="Excluir post"
+        description="Tem certeza que deseja excluir este post? Todos os comentários também serão removidos. Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmPostDelete}
+        onCancel={() => setConfirmDeletePost(false)}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteCommentId}
+        title="Excluir comentário"
+        description="Tem certeza que deseja excluir este comentário? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        onConfirm={confirmCommentDelete}
+        onCancel={() => setPendingDeleteCommentId(null)}
+      />
     </div>
   );
 }

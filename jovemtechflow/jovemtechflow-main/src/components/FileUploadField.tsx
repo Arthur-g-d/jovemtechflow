@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, File, X } from "lucide-react";
+import { toast } from "sonner";
 
 interface FileUploadFieldProps {
   onFileUploaded: (url: string, fileName: string) => void;
@@ -28,7 +29,7 @@ export default function FileUploadField({
 
     // Verificar tamanho do arquivo
     if (file.size > maxSizeMB * 1024 * 1024) {
-      alert(`Arquivo muito grande. Tamanho máximo: ${maxSizeMB}MB`);
+      toast.error(`Arquivo muito grande. Tamanho máximo: ${maxSizeMB}MB`);
       return;
     }
 
@@ -44,7 +45,7 @@ export default function FileUploadField({
     try {
       const user = (await supabase.auth.getUser()).data.user;
       if (!user) {
-        alert("Você precisa estar logado para fazer upload de arquivos");
+        toast.error("Você precisa estar logado para fazer upload de arquivos");
         return;
       }
 
@@ -61,7 +62,7 @@ export default function FileUploadField({
         });
 
       if (error) {
-        alert("Erro ao fazer upload do arquivo: " + error.message);
+        toast.error("Erro ao fazer upload do arquivo: " + error.message);
         return;
       }
 
@@ -70,7 +71,7 @@ export default function FileUploadField({
         .getPublicUrl(filePath);
 
       if (!urlData?.publicUrl) {
-        alert("Erro ao obter URL do arquivo enviado.");
+        toast.error("Erro ao obter URL do arquivo enviado.");
         return;
       }
 
@@ -82,7 +83,7 @@ export default function FileUploadField({
       setUploadProgress(0);
       
     } catch {
-      alert("Erro ao fazer upload do arquivo");
+      toast.error("Erro ao fazer upload do arquivo");
     } finally {
       setUploading(false);
     }
