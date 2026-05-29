@@ -9,6 +9,7 @@ import { Plus, Settings, Eye, Trash2 } from "lucide-react";
 import CreateProjectDialog from "./CreateProjectDialog";
 import ProjectEnrollmentButton from "./ProjectEnrollmentButton";
 import ConfirmDialog from "./ConfirmDialog";
+import ErrorState from "./ErrorState";
 
 export default function ProjectLibrary() {
   const [projects, setProjects] = useState<any[]>([]);
@@ -16,6 +17,8 @@ export default function ProjectLibrary() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [projectsError, setProjectsError] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -37,12 +40,19 @@ export default function ProjectLibrary() {
   }, []);
 
   const fetchProjects = () => {
+    setLoadingProjects(true);
+    setProjectsError(false);
     supabase
       .from("projects")
       .select("*")
       .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setProjects(data ?? []);
+      .then(({ data, error }) => {
+        if (error) {
+          setProjectsError(true);
+        } else {
+          setProjects(data ?? []);
+        }
+        setLoadingProjects(false);
       });
   };
 
@@ -56,6 +66,29 @@ export default function ProjectLibrary() {
       fetchProjects();
     }
   };
+
+  if (projectsError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-20 px-4">
+        <div className="max-w-7xl mx-auto">
+          <ErrorState
+            message="Não foi possível carregar os projetos. Tente novamente."
+            onRetry={fetchProjects}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingProjects) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 py-20 px-4">
+        <div className="max-w-7xl mx-auto text-center text-lg text-muted-foreground">
+          Carregando projetos...
+        </div>
+      </div>
+    );
+  }
 
   if (projects.length === 0 && !isAdmin) {
     return (

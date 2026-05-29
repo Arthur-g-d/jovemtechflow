@@ -1,6 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import ErrorState from "@/components/ErrorState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +81,7 @@ async function fetchDashboardData() {
 }
 
 export default function Dashboard() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["dashboard"],
     queryFn: fetchDashboardData,
   });
@@ -98,6 +99,17 @@ export default function Dashboard() {
       return `${date} ${time}`;
     }
   };
+
+  if (isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <ErrorState
+          message="Não foi possível carregar seu dashboard. Verifique sua conexão e tente novamente."
+          onRetry={() => refetch()}
+        />
+      </div>
+    );
+  }
 
   if (isLoading || !user) {
     return (

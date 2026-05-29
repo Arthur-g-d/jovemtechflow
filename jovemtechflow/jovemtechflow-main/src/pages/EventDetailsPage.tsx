@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import EventManager from "@/components/EventManager";
 import EventContentList from "@/components/EventContentList";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ErrorState from "@/components/ErrorState";
 import { useEventData } from "@/hooks/useEventData";
 import { useEventActions } from "@/hooks/useEventActions";
 import { useNavigate } from "react-router-dom";
@@ -27,6 +28,8 @@ export default function EventDetailsPage() {
   const [attendeeCount, setAttendeeCount] = useState<number>(0);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [pendingDeleteContentId, setPendingDeleteContentId] = useState<string | null>(null);
+  const [loadingEvent, setLoadingEvent] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const { contents, fetchModules } = useEventData(id || "");
   const { deleteContent } = useEventActions(id || "", fetchModules);
@@ -34,9 +37,18 @@ export default function EventDetailsPage() {
   useEffect(() => {
     if (!id) return;
 
+    setLoadingEvent(true);
+    setLoadError(false);
+
     // Buscar dados do evento
     supabase.from("events").select("*").eq("id", id).maybeSingle()
-      .then(async ({ data }) => {
+      .then(async ({ data, error }) => {
+        if (error) {
+          setLoadError(true);
+          setLoadingEvent(false);
+          return;
+        }
+
         setEvent(data);
 
         // Buscar nome do criador
@@ -51,6 +63,7 @@ export default function EventDetailsPage() {
 
         // Buscar total de inscritos
         fetchAttendeeCount();
+        setLoadingEvent(false);
       });
 
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -97,9 +110,24 @@ export default function EventDetailsPage() {
     fetchAttendeeCount();
   };
 
-  if (!event) return (
+  if (loadError) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <ErrorState
+        message="Não foi possível carregar o evento. Tente novamente."
+        onRetry={() => window.location.reload()}
+      />
+    </div>
+  );
+
+  if (loadingEvent) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-lg">Carregando evento...</div>
+    </div>
+  );
+
+  if (!event) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-lg">Evento não encontrado.</div>
     </div>
   );
 

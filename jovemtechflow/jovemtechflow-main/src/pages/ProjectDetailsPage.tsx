@@ -8,6 +8,7 @@ import ProjectEnrollmentManager from "@/components/ProjectEnrollmentManager";
 import ProjectProgress from "@/components/ProjectProgress";
 import ProjectEnrollmentButton from "@/components/ProjectEnrollmentButton";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ErrorState from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,7 +58,7 @@ export default function ProjectDetailsPage() {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["project-details", id],
     queryFn: () => fetchProjectAndUserData(id as string),
     enabled: !!id,
@@ -82,6 +83,15 @@ export default function ProjectDetailsPage() {
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-lg">Carregando projeto...</div>
+    </div>
+  );
+
+  if (isError) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <ErrorState
+        message="Não foi possível carregar o projeto. Tente novamente."
+        onRetry={() => refetch()}
+      />
     </div>
   );
 

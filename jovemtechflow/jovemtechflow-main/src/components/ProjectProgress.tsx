@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import ErrorState from "@/components/ErrorState";
 
 interface Content {
   id: string;
@@ -51,7 +52,7 @@ async function fetchProgressData(projectId: string) {
 const ProjectProgress = ({ projectId }: Props) => {
   const queryClient = useQueryClient();
 
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     queryKey: ["project-progress", projectId],
     queryFn: () => fetchProgressData(projectId),
     enabled: !!projectId,
@@ -85,6 +86,15 @@ const ProjectProgress = ({ projectId }: Props) => {
       toast.error("Erro ao salvar progresso. Tente novamente.");
     },
   });
+
+  if (isError) {
+    return (
+      <ErrorState
+        message="Não foi possível carregar seu progresso. Tente novamente."
+        onRetry={() => refetch()}
+      />
+    );
+  }
 
   // Calcula porcentagem global
   const percent =

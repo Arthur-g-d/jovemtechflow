@@ -11,6 +11,7 @@ import { MessageSquare, Plus, User, Calendar, CheckCircle, Trash2 } from "lucide
 import { Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import ConfirmDialog from "./ConfirmDialog";
+import ErrorState from "./ErrorState";
 
 export default function Forum() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -23,6 +24,8 @@ export default function Forum() {
   const [user, setUser] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [loading, setLoading] = useState(false);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [postsError, setPostsError] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [pendingDeletePostId, setPendingDeletePostId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -71,10 +74,13 @@ export default function Forum() {
       query = query.eq("category", selectedCategory);
     }
 
+    setLoadingPosts(true);
+    setPostsError(false);
+
     const { data, error } = await query;
-    
+
     if (error) {
-      console.error("Error fetching posts:", error);
+      setPostsError(true);
       toast({
         title: "Erro",
         description: "Erro ao carregar posts do fórum",
@@ -83,6 +89,7 @@ export default function Forum() {
     } else {
       setPosts(data || []);
     }
+    setLoadingPosts(false);
   };
 
   const handleCreatePost = async () => {
