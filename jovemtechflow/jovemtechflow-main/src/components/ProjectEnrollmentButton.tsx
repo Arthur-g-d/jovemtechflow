@@ -35,7 +35,7 @@ export default function ProjectEnrollmentButton({ projectId, onEnrollmentChange 
       .select("*")
       .eq("user_id", user.id)
       .eq("project_id", projectId)
-      .single();
+      .maybeSingle();
 
     setIsEnrolled(!!data);
   };
@@ -46,7 +46,7 @@ export default function ProjectEnrollmentButton({ projectId, onEnrollmentChange 
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .single();
+      .maybeSingle();
 
     // Buscar contagem atual de inscrições
     const { data: enrollments, count } = await supabase
@@ -108,7 +108,7 @@ export default function ProjectEnrollmentButton({ projectId, onEnrollmentChange 
       .select("*")
       .eq("user_id", user.id)
       .eq("project_id", projectId)
-      .single();
+      .maybeSingle();
 
     if (existingEnrollment) {
       setIsEnrolled(true);

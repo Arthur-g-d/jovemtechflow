@@ -35,8 +35,8 @@ export default function ProjectEnrollmentManager({ projectId }: ProjectEnrollmen
       .from("projects")
       .select("*")
       .eq("id", projectId)
-      .single();
-    
+      .maybeSingle();
+
     if (data) {
       setProject(data);
       setMaxEnrollments(data.max_enrollments);
@@ -105,7 +105,7 @@ export default function ProjectEnrollmentManager({ projectId }: ProjectEnrollmen
         .from("profiles")
         .select("*")
         .ilike("email", email.trim())
-        .single();
+        .maybeSingle();
 
       if (searchError || !profiles) {
         toast({
@@ -123,7 +123,7 @@ export default function ProjectEnrollmentManager({ projectId }: ProjectEnrollmen
         .select("*")
         .eq("user_id", profiles.id)
         .eq("project_id", projectId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         toast({

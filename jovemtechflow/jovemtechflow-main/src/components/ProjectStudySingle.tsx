@@ -35,7 +35,7 @@ export default function ProjectStudySingle() {
       .from("projects")
       .select("*")
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     setProject(projectData);
 
@@ -46,7 +46,7 @@ export default function ProjectStudySingle() {
         .select("*")
         .eq("user_id", user.id)
         .eq("project_id", id)
-        .single();
+        .maybeSingle();
 
       setIsEnrolled(!!enrollment);
 

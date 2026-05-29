@@ -39,7 +39,7 @@ export function useEventActions(eventId: string, onDataChange: () => void) {
       .from("event_contents")
       .insert(insertData)
       .select()
-      .single();
+      .maybeSingle();
 
     if (!error) {
       await onDataChange();
