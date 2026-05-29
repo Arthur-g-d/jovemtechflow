@@ -42,13 +42,17 @@ export default function AuthPage() {
     setLoading(false);
   };
 
-  // Salva perfil na tabela profiles
   const saveProfile = async (userId: string, username: string) => {
     const { error } = await supabase
       .from("profiles")
       .insert([{ id: userId, username }]);
     if (error) {
-      toast.error("Erro ao salvar perfil: " + error.message);
+      if (error.code === "23505" && error.message.includes("username")) {
+        toast.error("Nome de usuário já está em uso. Tente outro.");
+      } else if (error.code !== "23505") {
+        // ignora duplicata de id (perfil já existe para este usuário)
+        toast.error("Erro ao salvar perfil: " + error.message);
+      }
     }
   };
 

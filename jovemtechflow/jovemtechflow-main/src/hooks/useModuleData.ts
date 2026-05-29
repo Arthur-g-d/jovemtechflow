@@ -9,50 +9,37 @@ export function useModuleData(projectId: string) {
 
   const fetchModules = async () => {
     if (!projectId) return;
-    
-    console.log("Fetching modules for project:", projectId);
-    
+
     const { data: moduleData, error: moduleError } = await supabase
       .from("project_modules")
       .select("*")
       .eq("project_id", projectId)
       .order("order_index", { ascending: true });
 
-    if (moduleError) {
-      console.error("Error fetching modules:", moduleError);
-      return;
-    }
+    if (moduleError) return;
 
     if (moduleData) {
-      console.log("Found modules:", moduleData);
       setModules(moduleData);
-      
-      // Fetch contents for each module
+
       const contentPromises = moduleData.map(async (module) => {
-        console.log(`Fetching contents for module ${module.id}`);
-        const { data: contentData, error: contentError } = await supabase
+        const { data: contentData } = await supabase
           .from("project_contents")
           .select("*")
           .eq("module_id", module.id)
           .order("order_index", { ascending: true });
-        
-        if (contentError) {
-          console.error("Error fetching contents for module", module.id, ":", contentError);
-          return { moduleId: module.id, contents: [] };
-        }
-        
-        console.log(`Contents for module ${module.title}:`, contentData);
+
         return { moduleId: module.id, contents: contentData || [] };
       });
-      
-      const contentResults = await Promise.all(contentPromises);
+
+      const contentResults = await Promise.allSettled(contentPromises);
       const contentsMap: { [moduleId: string]: ModuleContent[] } = {};
-      
-      contentResults.forEach(({ moduleId, contents }) => {
-        contentsMap[moduleId] = contents;
+
+      contentResults.forEach((result) => {
+        if (result.status === "fulfilled") {
+          contentsMap[result.value.moduleId] = result.value.contents;
+        }
       });
-      
-      console.log("Final contents map:", contentsMap);
+
       setContents(contentsMap);
     }
   };

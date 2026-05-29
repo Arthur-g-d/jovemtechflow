@@ -43,8 +43,8 @@ async function fetchProgressData(projectId: string) {
       : Promise.resolve({ data: [] }),
   ]);
 
-  const contents = results[0].status === "fulfilled" ? (results[0].value.data as Content[]) : [];
-  const progresses = results[1].status === "fulfilled" ? (results[1].value.data as Progression[]) : [];
+  const contents = results[0].status === "fulfilled" ? ((results[0].value.data ?? []) as Content[]) : [];
+  const progresses = results[1].status === "fulfilled" ? ((results[1].value.data ?? []) as Progression[]) : [];
 
   return { userId, contents: contents || [], progresses: progresses || [] };
 }

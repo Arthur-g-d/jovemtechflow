@@ -13,6 +13,7 @@ import EventManager from "@/components/EventManager";
 import EventContentList from "@/components/EventContentList";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ErrorState from "@/components/ErrorState";
+import { toast } from "sonner";
 import { useEventData } from "@/hooks/useEventData";
 import { useEventActions } from "@/hooks/useEventActions";
 import { useNavigate } from "react-router-dom";
@@ -37,12 +38,14 @@ export default function EventDetailsPage() {
   useEffect(() => {
     if (!id) return;
 
+    let mounted = true;
+
     setLoadingEvent(true);
     setLoadError(false);
 
-    // Buscar dados do evento
     supabase.from("events").select("*").eq("id", id).maybeSingle()
       .then(async ({ data, error }) => {
+        if (!mounted) return;
         if (error) {
           setLoadError(true);
           setLoadingEvent(false);
@@ -51,22 +54,23 @@ export default function EventDetailsPage() {
 
         setEvent(data);
 
-        // Buscar nome do criador
         if (data?.created_by) {
           const { data: profile } = await supabase
             .from("profiles")
             .select("username")
             .eq("id", data.created_by)
             .maybeSingle();
-          setCreatorUsername(profile?.username || data.created_by);
+          if (mounted) setCreatorUsername(profile?.username || data.created_by);
         }
 
-        // Buscar total de inscritos
-        fetchAttendeeCount();
-        setLoadingEvent(false);
+        if (mounted) {
+          fetchAttendeeCount();
+          setLoadingEvent(false);
+        }
       });
 
     supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!mounted) return;
       if (!user) return setUserId(null);
 
       setUserId(user.id);
@@ -77,7 +81,7 @@ export default function EventDetailsPage() {
         .eq("event_id", id)
         .eq("user_id", user.id)
         .maybeSingle()
-        .then(({ data }) => setIsRegistered(!!data));
+        .then(({ data }) => { if (mounted) setIsRegistered(!!data); });
 
       supabase
         .from("user_roles")
@@ -85,8 +89,10 @@ export default function EventDetailsPage() {
         .eq("user_id", user.id)
         .eq("role", "admin")
         .maybeSingle()
-        .then(({ data }) => setIsAdmin(!!data));
+        .then(({ data }) => { if (mounted) setIsAdmin(!!data); });
     });
+
+    return () => { mounted = false; };
   }, [id]);
 
   const fetchAttendeeCount = async () => {
@@ -99,15 +105,19 @@ export default function EventDetailsPage() {
   };
 
   const handleRegister = async () => {
-    if (!userId || !id) return;
+    if (!userId || !id || registering || isRegistered) return;
     setRegistering(true);
-    await supabase.from("event_registrations").insert({
+    const { error } = await supabase.from("event_registrations").insert({
       event_id: id,
       user_id: userId,
     });
-    setIsRegistered(true);
+    if (!error) {
+      setIsRegistered(true);
+      fetchAttendeeCount();
+    } else {
+      toast.error("Erro ao se inscrever. Tente novamente.");
+    }
     setRegistering(false);
-    fetchAttendeeCount();
   };
 
   if (loadError) return (

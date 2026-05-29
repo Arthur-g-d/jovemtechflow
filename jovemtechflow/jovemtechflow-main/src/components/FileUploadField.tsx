@@ -71,6 +71,7 @@ export default function FileUploadField({
         .getPublicUrl(filePath);
 
       if (!urlData?.publicUrl) {
+        await supabase.storage.from('content-files').remove([filePath]);
         toast.error("Erro ao obter URL do arquivo enviado.");
         return;
       }
